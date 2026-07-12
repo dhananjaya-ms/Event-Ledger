@@ -99,8 +99,9 @@ public class GatewayServiceImpl implements GatewayService {
                     ev.setStatus("FAILED");
                     ev.setProcessedAt(OffsetDateTime.now());
                     eventRepository.save(ev);
+                    throw new ServiceUnavailableException("Account Service is temporarily unavailable. Please retry later.");
                     // Break the loop - don't continue processing other events if the service is down
-                    break;
+                    //break;
                 } catch (Exception ex) {
                     log.error("Failed to apply event {}: {}", ev.getEventId(), ex.getMessage());
                     ev.setStatus("FAILED");
