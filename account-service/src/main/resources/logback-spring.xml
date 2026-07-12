@@ -1,0 +1,45 @@
+<configuration scan="true" debug="false">
+
+  <!-- read service name from spring.application.name when available -->
+  <property name="APP_NAME" value="${spring.application.name:-account-service}" />
+
+  <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+    <encoder class="net.logstash.logback.encoder.LoggingEventCompositeJsonEncoder">
+      <providers>
+        <timestamp>
+          <fieldName>timestamp</fieldName>
+          <timeZone>UTC</timeZone>
+          <pattern>yyyy-MM-dd'T'HH:mm:ss.SSS'Z'</pattern>
+        </timestamp>
+        <logLevel>
+          <fieldName>level</fieldName>
+        </logLevel>
+        <loggerName>
+          <fieldName>logger</fieldName>
+        </loggerName>
+        <threadName>
+          <fieldName>thread</fieldName>
+        </threadName>
+        <!-- Include trace ID from MDC in structured logs. Accept several common key names used by tracing libraries -->
+        <mdc>
+          <includeMdcKeyName>traceId</includeMdcKeyName>
+          <includeMdcKeyName>trace_id</includeMdcKeyName>
+          <includeMdcKeyName>X-B3-TraceId</includeMdcKeyName>
+          <includeMdcKeyName>trace-id</includeMdcKeyName>
+        </mdc>
+        <message>
+          <fieldName>message</fieldName>
+        </message>
+        <stackTrace>
+          <fieldName>stacktrace</fieldName>
+        </stackTrace>
+        <globalCustomFields>{"service":"${APP_NAME}"}</globalCustomFields>
+      </providers>
+    </encoder>
+  </appender>
+
+  <root level="INFO">
+    <appender-ref ref="STDOUT" />
+  </root>
+
+</configuration>
