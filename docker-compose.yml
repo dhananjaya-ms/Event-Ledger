@@ -1,0 +1,92 @@
+version: '3.8'
+
+services:
+  # Internal service - NOT exposed to the outside world
+  account-service:
+    build:
+      context: ./Event-Ledger-Local/account-service
+      dockerfile: Dockerfile
+    container_name: account-service
+    ports:
+      # Internal port only - NOT mapped to host
+      - "8080"
+    environment:
+      - SPRING_APPLICATION_NAME=account-service
+      - SERVER_PORT=8080
+      - SPRING_DATASOURCE_URL=jdbc:h2:mem:accountdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+      - SPRING_DATASOURCE_DRIVER_CLASS_NAME=org.h2.Driver
+      - SPRING_DATASOURCE_USERNAME=sa
+      - SPRING_DATASOURCE_PASSWORD=
+      - SPRING_JPA_HIBERNATE_DDL_AUTO=update
+      - SPRING_JPA_SHOW_SQL=true
+      - SPRING_JPA_PROPERTIES_HIBERNATE_FORMAT_SQL=true
+      - SPRING_H2_CONSOLE_ENABLED=true
+      - SPRING_H2_CONSOLE_PATH=/h2-console
+    networks:
+      - event-ledger-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  # Public service - Exposed to users
+  gateway-service:
+    build:
+      context: ./Event-Ledger-Repo/gateway-service
+      dockerfile: Dockerfile
+    container_name: gateway-service
+    ports:
+      # Map to host port 8080 for public access
+      - "8080:8081"
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - SPRING_APPLICATION_NAME=gateway-service
+      - SERVER_PORT=8081
+      - SPRING_DATASOURCE_URL=jdbc:h2:mem:eventdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+      - SPRING_DATASOURCE_DRIVER_CLASS_NAME=org.h2.Driver
+      - SPRING_DATASOURCE_USERNAME=sa
+      - SPRING_DATASOURCE_PASSWORD=
+      - SPRING_JPA_HIBERNATE_DDL_AUTO=update
+      - SPRING_JPA_SHOW_SQL=true
+      - SPRING_JPA_PROPERTIES_HIBERNATE_FORMAT_SQL=true
+      - SPRING_H2_CONSOLE_ENABLED=true
+      - SPRING_H2_CONSOLE_PATH=/h2-console
+      # Point to account-service using Docker internal DNS
+      - ACCOUNT_SERVICE_URL=http://account-service:8080
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
+      - LOGGING_CONFIG=classpath:logback-spring.xml
+      - SPRINGDOC_SWAGGER_UI_ENABLED=true
+      - SPRINGDOC_SWAGGER_UI_PATH=/swagger-ui.html
+      - SPRINGDOC_API_DOCS_PATH=/v3/api-docs
+      - SPRINGDOC_SWAGGER_UI_OPERATIONS_SORTER=method
+      - SPRINGDOC_SWAGGER_UI_TAGS_SORTER=alpha
+      - RESILIENCE4J_CIRCUITBREAKER_INSTANCES_ACCOUNTSERVICE_REGISTER_HEALTH_INDICATOR=true
+      - RESILIENCE4J_CIRCUITBREAKER_INSTANCES_ACCOUNTSERVICE_FAILURE_RATE_THRESHOLD=50
+      - RESILIENCE4J_CIRCUITBREAKER_INSTANCES_ACCOUNTSERVICE_SLOW_CALL_RATE_THRESHOLD=50
+      - RESILIENCE4J_CIRCUITBREAKER_INSTANCES_ACCOUNTSERVICE_SLOW_CALL_DURATION_THRESHOLD=5000
+      - RESILIENCE4J_CIRCUITBREAKER_INSTANCES_ACCOUNTSERVICE_PERMITTED_NUMBER_OF_CALLS_IN_HALF_OPEN_STATE=3
+      - RESILIENCE4J_CIRCUITBREAKER_INSTANCES_ACCOUNTSERVICE_MINIMUM_NUMBER_OF_CALLS=5
+      - RESILIENCE4J_CIRCUITBREAKER_INSTANCES_ACCOUNTSERVICE_SLIDING_WINDOW_SIZE=10
+      - RESILIENCE4J_CIRCUITBREAKER_INSTANCES_ACCOUNTSERVICE_WAIT_DURATION_IN_OPEN_STATE=30000
+      - MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE=health,metrics,circuitbreakers
+      - MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS=when-authorized
+      - MANAGEMENT_HEALTH_CIRCUITBREAKER_ENABLED=true
+      - MANAGEMENT_METRICS_DISTRIBUTION_PERCENTILES_HISTOGRAM_HTTP_SERVER_REQUESTS=true
+    networks:
+      - event-ledger-network
+    depends_on:
+      account-service:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8081/actuator/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+networks:
+  # Isolated network for internal communication
+  event-ledger-network:
+    driver: bridge

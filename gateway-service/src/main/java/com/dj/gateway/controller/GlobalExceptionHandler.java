@@ -2,6 +2,7 @@ package com.dj.gateway.controller;
 
 import com.dj.gateway.exception.EventNotFoundException;
 import com.dj.gateway.exception.IdempotencyException;
+import com.dj.gateway.exception.ServiceUnavailableException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -40,6 +41,21 @@ public class GlobalExceptionHandler {
         body.put("error", "Not Found");
         body.put("message", ex.getMessage());
         return new ResponseEntity<>(body, new HttpHeaders(), HttpStatus.NOT_FOUND);
+    }
+
+    /**
+     * Handle ServiceUnavailableException when circuit breaker is open
+     * Returns HTTP 503 (Service Unavailable) to indicate the downstream service is temporarily unavailable
+     */
+    @ExceptionHandler(ServiceUnavailableException.class)
+    public ResponseEntity<Object> handleServiceUnavailable(ServiceUnavailableException ex) {
+        Map<String, Object> body = new HashMap<>();
+        body.put("status", HttpStatus.SERVICE_UNAVAILABLE.value());
+        body.put("error", "Service Unavailable");
+        body.put("message", ex.getMessage());
+        body.put("timestamp", System.currentTimeMillis());
+        body.put("hint", "The service is experiencing issues. Please retry your request after a few moments.");
+        return new ResponseEntity<>(body, new HttpHeaders(), HttpStatus.SERVICE_UNAVAILABLE);
     }
 
     @ExceptionHandler(Exception.class)

@@ -8,6 +8,7 @@ import com.dj.gateway.dto.TransactionRequest;
 import com.dj.gateway.entity.Event;
 import com.dj.gateway.exception.EventNotFoundException;
 import com.dj.gateway.exception.IdempotencyException;
+import com.dj.gateway.exception.ServiceUnavailableException;
 import com.dj.gateway.repository.EventRepository;
 import com.dj.gateway.util.EventMapper;
 import org.slf4j.Logger;
@@ -84,6 +85,14 @@ public class GatewayServiceImpl implements GatewayService {
                     ev.setProcessedAt(OffsetDateTime.now());
                     eventRepository.save(ev);
                     log.info("Applied event {}", ev.getEventId());
+                } catch (ServiceUnavailableException ex) {
+                    // Circuit breaker is open - Account Service is temporarily unavailable
+                    log.warn("Account Service is temporarily unavailable (circuit breaker OPEN) - marking event {} as FAILED", ev.getEventId());
+                    ev.setStatus("FAILED");
+                    ev.setProcessedAt(OffsetDateTime.now());
+                    eventRepository.save(ev);
+                    // Break the loop - don't continue processing other events if the service is down
+                    break;
                 } catch (Exception ex) {
                     log.error("Failed to apply event {}: {}", ev.getEventId(), ex.getMessage());
                     ev.setStatus("FAILED");
