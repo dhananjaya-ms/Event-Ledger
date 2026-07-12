@@ -1,0 +1,38 @@
+<configuration scan="true" debug="false">
+
+  <property name="APP_NAME" value="gateway-service" />
+
+  <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+    <encoder class="net.logstash.logback.encoder.LoggingEventCompositeJsonEncoder">
+      <providers>
+        <timestamp>
+          <fieldName>timestamp</fieldName>
+        </timestamp>
+        <logLevel>
+          <fieldName>level</fieldName>
+        </logLevel>
+        <loggerName>
+          <fieldName>logger</fieldName>
+        </loggerName>
+        <threadName>
+          <fieldName>thread</fieldName>
+        </threadName>
+        <mdc>
+          <includeMdcKeyName>traceId</includeMdcKeyName>
+        </mdc>
+        <message>
+          <fieldName>message</fieldName>
+        </message>
+        <stackTrace>
+          <fieldName>stacktrace</fieldName>
+        </stackTrace>
+        <globalCustomFields>{"service":"${APP_NAME}"}</globalCustomFields>
+      </providers>
+    </encoder>
+  </appender>
+
+  <root level="INFO">
+    <appender-ref ref="STDOUT" />
+  </root>
+
+</configuration>
