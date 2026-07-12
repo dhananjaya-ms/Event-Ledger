@@ -78,11 +78,14 @@ public class EventController {
     })
     public ResponseEntity<Page<EventResponse>> listEvents(
             @Parameter(description = "Account ID (required)", required = true)
-            @RequestParam(name = "account") String accountId,
+            @RequestParam(name = "account", required = true) String accountId,
             @Parameter(description = "Page number (0-based)", example = "0")
             @RequestParam(defaultValue = "0") int page,
             @Parameter(description = "Page size", example = "20")
             @RequestParam(defaultValue = "20") int size) {
+        if (accountId == null || accountId.isBlank()) {
+            throw new IllegalArgumentException("account parameter is required");
+        }
         Pageable p = PageRequest.of(page, size);
         Page<EventResponse> result = gatewayService.listEventsForAccount(accountId, p);
         return ResponseEntity.ok(result);

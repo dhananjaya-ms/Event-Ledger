@@ -47,13 +47,21 @@ public class GatewayServiceImpl implements GatewayService {
     @Override
     @Transactional
     public EventResponse submitEvent(EventRequest req, String traceId) {
+        // Check for duplicate first (idempotency)
+        if (eventRepository.findByEventId(req.getEventId()).isPresent()) {
+            Event existing = eventRepository.findByEventId(req.getEventId()).orElseThrow();
+            EventResponse resp = EventMapper.toResponse(existing);
+            log.warn("Duplicate eventId {} detected for account {}", req.getEventId(), req.getAccountId());
+            throw new IdempotencyException(resp);
+        }
+        
         // convert to entity
         Event e = EventMapper.toEntity(req);
         try {
             Event saved = eventRepository.save(e);
             log.info("Persisted event {} for account {}", saved.getEventId(), saved.getAccountId());
         } catch (DataIntegrityViolationException ex) {
-            // duplicate key - fetch existing and return
+            // fallback in case of race condition
         	log.error("Duplicate eventId {} detected for account {}: {}", e.getEventId(), e.getAccountId(), ex.getMessage());
             Event existing = eventRepository.findByEventId(e.getEventId()).orElse(null);
             EventResponse resp = existing == null ? null : EventMapper.toResponse(existing);
