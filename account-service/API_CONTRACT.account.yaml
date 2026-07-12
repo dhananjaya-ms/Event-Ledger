@@ -1,0 +1,157 @@
+openapi: 3.1.0
+info:
+  title: Account Service API Contract
+  version: 1.0.0
+  description: |
+    API contract for the Account Service. Defines endpoints the service offers and
+    the expected request/response shapes used by the Gateway and external clients.
+servers:
+  - url: https://accounts.example.com
+paths:
+  /accounts/{accountId}/transactions:
+    post:
+      summary: Apply a transaction to an account
+      parameters:
+        - name: accountId
+          in: path
+          required: true
+          schema:
+            type: string
+            pattern: "^[0-9]+$"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransactionRequest'
+      responses:
+        '201':
+          description: Transaction applied / created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransactionResponse'
+        '400':
+          description: Validation error (bad payload)
+        '404':
+          description: Account not found (if applicable)
+        '503':
+          description: Service unavailable
+  /accounts/{accountId}/balance:
+    get:
+      summary: Get current balance for an account
+      parameters:
+        - name: accountId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Current balance
+          content:
+            application/json:
+              schema:
+                type: number
+                format: double
+        '404':
+          description: Account not found
+  /accounts/{accountId}:
+    get:
+      summary: Get account details including recent transactions
+      parameters:
+        - name: accountId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: recentTx
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 10
+      responses:
+        '200':
+          description: Account details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AccountDetailsResponse'
+        '404':
+          description: Account not found
+
+components:
+  schemas:
+    TransactionRequest:
+      type: object
+      required:
+        - amount
+        - type
+        - currency
+      properties:
+        amount:
+          type: number
+          format: double
+          description: Signed amount to apply. Gateway may send negative amounts for debits.
+          example: 100.00
+        type:
+          type: string
+          description: Type of transaction
+          enum: [CREDIT, DEBIT]
+          example: CREDIT
+        currency:
+          type: string
+          example: USD
+        description:
+          type: string
+          nullable: true
+          description: Optional description for the transaction (e.g. origin event id)
+    TransactionResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+        amount:
+          type: number
+          format: double
+        timestamp:
+          type: string
+          format: date-time
+        type:
+          type: string
+          enum: [CREDIT, DEBIT]
+        currency:
+          type: string
+    AccountDetailsResponse:
+      type: object
+      properties:
+        accountId:
+          type: string
+        balance:
+          type: number
+          format: double
+        recentTransactions:
+          type: array
+          items:
+            $ref: '#/components/schemas/TransactionResponse'
+
+  x-interservice:
+    description: |
+      Notes for inter-service communication (Gateway -> Account Service):
+      - Gateway will call POST /accounts/{accountId}/transactions with a JSON body matching TransactionRequest.
+      - The Gateway will send amounts such that adding the provided amount to the existing balance produces the new balance.
+        For DEBIT transactions the Gateway currently sends a negated amount.
+      - Expected responses:
+          201 Created: Transaction applied successfully (body: TransactionResponse)
+          400 Bad Request: Validation failed
+          503 Service Unavailable: Account Service temporarily unavailable (Gateway should treat as transient and retry / mark as FAILED)
+
+    examples:
+      gateway_call_example:
+        summary: Example request body from Gateway when forwarding an event
+        value:
+          amount: -50.00
+          type: DEBIT
+          currency: USD
+          description: "event:evt-001"
