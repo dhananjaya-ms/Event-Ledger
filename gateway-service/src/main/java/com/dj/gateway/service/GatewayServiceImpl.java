@@ -54,7 +54,7 @@ public class GatewayServiceImpl implements GatewayService {
             log.info("Persisted event {} for account {}", saved.getEventId(), saved.getAccountId());
         } catch (DataIntegrityViolationException ex) {
             // duplicate key - fetch existing and return
-        	System.out.println("Duplicate eventId detected: " + e.getEventId());
+        	log.error("Duplicate eventId {} detected for account {}: {}", e.getEventId(), e.getAccountId(), ex.getMessage());
             Event existing = eventRepository.findByEventId(e.getEventId()).orElse(null);
             EventResponse resp = existing == null ? null : EventMapper.toResponse(existing);
             throw new IdempotencyException(resp);
@@ -108,8 +108,11 @@ public class GatewayServiceImpl implements GatewayService {
         if ("DEBIT".equals(ev.getType())) {
             amount = amount.negate();
         }
+        
+        String currency = ev.getCurrency();
+        String type = ev.getType();
         String desc = "event:" + ev.getEventId();
-        return new TransactionRequest(amount, desc);
+        return new TransactionRequest(amount,type,currency,desc);
     }
 
     @Override

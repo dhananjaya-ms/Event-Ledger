@@ -15,6 +15,7 @@ public class EventRequest {
     private String eventId;
 
     @NotBlank(message = "accountId is required")
+    @Pattern(regexp = "[0-9]+", message = "accountId must be numeric")
     @Schema(description = "Account ID associated with this transaction", example = "acc-67890", requiredMode = Schema.RequiredMode.REQUIRED)
     private String accountId;
 
