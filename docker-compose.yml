@@ -4,7 +4,7 @@ services:
   # Internal service - NOT exposed to the outside world
   account-service:
     build:
-      context: ./Event-Ledger-Local/account-service
+      context: ./account-service
       dockerfile: Dockerfile
     container_name: account-service
     ports:
@@ -34,7 +34,7 @@ services:
   # Public service - Exposed to users
   gateway-service:
     build:
-      context: ./Event-Ledger-Repo/gateway-service
+      context: ./gateway-service
       dockerfile: Dockerfile
     container_name: gateway-service
     ports:
@@ -73,7 +73,6 @@ services:
       - MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE=health,metrics,circuitbreakers
       - MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS=when-authorized
       - MANAGEMENT_HEALTH_CIRCUITBREAKER_ENABLED=true
-      - MANAGEMENT_METRICS_DISTRIBUTION_PERCENTILES_HISTOGRAM_HTTP_SERVER_REQUESTS=true
     networks:
       - event-ledger-network
     depends_on:
